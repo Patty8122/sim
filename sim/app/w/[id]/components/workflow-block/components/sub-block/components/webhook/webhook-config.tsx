@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { CheckCircle2, ExternalLink } from 'lucide-react'
-import { DiscordIcon, GithubIcon, SlackIcon, StripeIcon, WhatsAppIcon } from '@/components/icons'
+import { DiscordIcon, GithubIcon, SlackIcon, StripeIcon, WhatsAppIcon, GmailIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { createLogger } from '@/lib/logs/console-logger'
 import { useSubBlockValue } from '../../hooks/use-sub-block-value'
@@ -39,6 +39,10 @@ export interface DiscordConfig {
   avatarUrl?: string
 }
 
+export interface GmailConfig {
+  // Any Gmail-specific fields would go here
+}
+
 export interface StripeConfig {
   // Any Stripe-specific fields would go here
 }
@@ -62,6 +66,7 @@ export type ProviderConfig =
   | StripeConfig
   | GeneralWebhookConfig
   | SlackConfig
+  | GmailConfig
   | Record<string, never>
 
 // Define available webhook providers
@@ -116,6 +121,12 @@ export const WEBHOOK_PROVIDERS: { [key: string]: WebhookProvider } = {
     id: 'stripe',
     name: 'Stripe',
     icon: (props) => <StripeIcon {...props} />,
+    configFields: {},
+  },
+  gmail: {
+    id: 'gmail',
+    name: 'Gmail',
+    icon: (props) => <GmailIcon {...props} />,
     configFields: {},
   },
   generic: {

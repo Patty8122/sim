@@ -13,8 +13,11 @@ import { environment, userStats, webhook, workflow } from '@/db/schema'
 import { Executor } from '@/executor'
 import { Serializer } from '@/serializer'
 import { validateSlackSignature } from '../../utils'
+import { Redis } from 'ioredis'
+import { processGmailMessages } from '@/lib/gmail/process-messages'
 
 const logger = createLogger('WebhookTriggerAPI')
+const redis = new Redis(process.env.REDIS_URL)
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes max execution time for long-running webhooks
@@ -274,6 +277,38 @@ export async function POST(
         logger.debug(`[${requestId}] No messages in WhatsApp payload, might be a status update`)
         return new NextResponse('OK', { status: 200 })
       }
+    } else if (foundWebhook.provider === 'gmail') {
+      // Decode Pub/Sub message
+      const messageData = JSON.parse(
+        Buffer.from(body.message.data, 'base64').toString()
+      )
+
+      const { emailAddress, historyId } = messageData
+      const lastHistoryId = foundWebhook.providerConfig?.historyId || historyId
+
+      // Queue the message processing task
+      await redis.lpush('gmail:message:queue', JSON.stringify({
+        webhookId: foundWebhook.id,
+        emailAddress,
+        historyId,
+        lastHistoryId,
+        timestamp: Date.now(),
+      }))
+
+      // Update the stored historyId immediately
+      await db
+        .update(webhook)
+        .set({
+          providerConfig: {
+            ...foundWebhook.providerConfig,
+            historyId: historyId,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(webhook.id, foundWebhook.id))
+
+      logger.info(`[${requestId}] Queued Gmail processing for ${emailAddress}`)
+      return new NextResponse('OK', { status: 200 })
     }
 
     // Mark this request as processed to prevent duplicates
