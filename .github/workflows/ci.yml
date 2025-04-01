@@ -78,8 +78,11 @@ jobs:
         with:
           images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           tags: |
-            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
+            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=schedule,pattern={{date 'YYYYMMDD'}}
 
       # This step uses the `docker/build-push-action` action to build the
       # image, based on your repository's `Dockerfile`. If the build succeeds,
@@ -96,3 +99,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Show tags
+        run: |
+          echo "Tags to be used:"
+          echo "${{ steps.meta.outputs.tags }}"
